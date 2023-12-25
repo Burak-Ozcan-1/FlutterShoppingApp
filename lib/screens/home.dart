@@ -117,6 +117,7 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     if (widget.ustKID == null || widget.altKID == null) {
+      print('deneme');
       _getUrunler(0, 0);
     } else {
       _getUrunler(widget.ustKID!, widget.altKID!);
