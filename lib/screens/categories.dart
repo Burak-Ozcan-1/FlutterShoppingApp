@@ -1,7 +1,6 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:todoapp/model/alt_category.dart';
-import 'package:todoapp/model/urunler.dart';
-import 'package:todoapp/model/ust_category.dart';
+import 'package:todoapp/components/yukleniyor.dart';
 import 'package:todoapp/screens/home.dart';
 
 class Categories extends StatefulWidget {
@@ -11,42 +10,48 @@ class Categories extends StatefulWidget {
   State<Categories> createState() => _CategoriesState();
 }
 
-List<UstCategory> _ustKategor = [];
-List<AltCategory> _altKategor = [];
-//List<Urunler> urunler = [];
+//Ust Kategori
+late List<Map<String, dynamic>> itemsUstKategori;
+var collectionUstKategori = //isGreaterThanOrEqualTo: searchKey)
+    FirebaseFirestore.instance.collection('UstKategori').orderBy('ustKid');
+
+//Alt Kategori
+late List<Map<String, dynamic>> itemsAltKategori;
+var collectionAltKategori =
+    FirebaseFirestore.instance.collection('AltKategori').orderBy('ustKid');
+
+//Urunler
+late List<Map<String, dynamic>> itemsUrunler;
+var collectionUrunler = FirebaseFirestore.instance.collection('Urunler');
+
+bool isLoaded = false;
 
 class _CategoriesState extends State<Categories> {
   @override
   void initState() {
-    _ustKategor = UstCategory.getUstKategori();
-    _altKategor = AltCategory.getKategori();
     super.initState();
   }
 
   @override
   Widget build(BuildContext context) {
+    veriTabaniIslemi();
     return Scaffold(
       appBar: AppBar(), //kapatıldı üstte boşluk atıyor.
-      body: kategori(),
+      body: Center(
+        child: isLoaded ? kategori() : Yukleniyor(),
+      ), //kategori(),
     );
   }
 
   ListView kategori() {
     return ListView.builder(
-      itemCount: _ustKategor.length,
+      itemCount: itemsUstKategori.length, //_ustKategor.length,
       itemBuilder: (context, index) {
-        var groupName = _ustKategor[index].ustKadi;
-        String items = _altKategor[index].kAdi;
-        int p_UstKID = _altKategor[index].ustKid;
-        int p_AltKID = _altKategor[index].altKid;
-        int toplam = Urunler.getUrunler()
-            .where(
-              (i) =>
-                  i.ustKid == p_UstKID &&
-                  i.altKid == p_AltKID &&
-                  i.yayinda == 1,
-            )
-            .length;
+        int tumUrunler = itemsUrunler.where((map) {
+          return map['ustKategoriId'] == itemsUstKategori[index]["ustKid"] &&
+              map['altKategoriId'] == itemsAltKategori[index]["altKid"] &&
+              map['yayinda'] == 1;
+        }).length;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -54,8 +59,9 @@ class _CategoriesState extends State<Categories> {
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: Text(
-                groupName,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                itemsUstKategori[index]["ustKadi"],
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ),
 
@@ -64,19 +70,23 @@ class _CategoriesState extends State<Categories> {
               itemCount: 1,
               itemBuilder: (context, itemIndex) {
                 return ListTile(
-                  title: Text(items + ' ' + '(' + toplam.toString() + ')'),
+                  title: Text(itemsAltKategori[index]["kAdi"] +
+                      ' ' +
+                      '(' +
+                      tumUrunler.toString() +
+                      ')'),
                   onTap: () {
-                    if (toplam == 0) {
+                    if (tumUrunler == 0) {
                       alertgoster(
-                        items,
+                        itemsAltKategori[index]["kAdi"], //items,
                       );
                     } else {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
                             builder: (context) => HomePage(
-                                  ustKID: p_UstKID,
-                                  altKID: p_AltKID,
+                                  ustKID: itemsAltKategori[index]["ustKid"],
+                                  altKID: itemsAltKategori[index]["altKid"],
                                 )),
                       );
                     }
@@ -88,6 +98,34 @@ class _CategoriesState extends State<Categories> {
         );
       },
     );
+  }
+
+  veriTabaniIslemi() async {
+    //Ust Kategori Listesi
+    List<Map<String, dynamic>> tempListUstKategori = [];
+    var dataUstKategori = await collectionUstKategori.get();
+    dataUstKategori.docs.forEach((element) {
+      tempListUstKategori.add(element.data());
+    });
+    //alt Kategori Listesi
+    List<Map<String, dynamic>> tempListAltKategori = [];
+    var dataAltKategori = await collectionAltKategori.get();
+    dataAltKategori.docs.forEach((element) {
+      tempListAltKategori.add(element.data());
+    });
+
+    List<Map<String, dynamic>> tempListUrunler = [];
+    var dataUrunler = await collectionUrunler.get();
+    dataUrunler.docs.forEach((element) {
+      tempListUrunler.add(element.data());
+    });
+
+    setState(() {
+      itemsUstKategori = tempListUstKategori;
+      itemsAltKategori = tempListAltKategori;
+      itemsUrunler = tempListUrunler;
+      isLoaded = true;
+    });
   }
 
   alertgoster(String kategoriAdi) {

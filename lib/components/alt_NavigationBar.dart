@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:todoapp/components/Fsepet.dart';
+import 'package:todoapp/components/Sepet/Fsepet.dart';
 import 'package:todoapp/screens/account.dart';
 import 'package:todoapp/screens/categories.dart';
 import 'package:todoapp/screens/home.dart';
@@ -28,7 +28,7 @@ class MyBottomNavState extends State<MyBottomNav> {
 
   @override
   Widget build(BuildContext context) {
-    if (SepetiGoster().isNotEmpty && widget.sepet == 1) {
+    if (sepetiGoster().length != 0 && widget.sepet == 1) {
       widget.sepet = 0;
       _currentIndex = 1;
       return Scaffold(

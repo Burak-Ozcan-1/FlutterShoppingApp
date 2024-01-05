@@ -1,10 +1,9 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:todoapp/model/urunler.dart';
+import 'package:todoapp/components/yukleniyor.dart';
 import 'package:todoapp/screens/detail.dart';
-
-//import 'package:todoapp/screens/uyazi.dart';
-//import 'package:todoapp/model/urunler.dart';
+import 'package:todoapp/services/firebase_img_service.dart';
 
 class HomePage extends StatefulWidget {
   int? ustKID;
@@ -15,97 +14,93 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
+//Urunler
+late List<Map<String, dynamic>> itemsUrunler;
+var collectionUrunler =
+    FirebaseFirestore.instance.collection('Urunler').orderBy('id');
+
+bool isLoaded = false;
+int aramaVar = 0; //arama alanına birşey yazılıp yazılmadığını kontrol eder.
+
 class _HomePageState extends State<HomePage> {
-  List<Urunler> urunlers = [];
-  List<Urunler> urunlerkosullu = [];
-  List<Urunler> _urunler = [];
+  List<Map<String, dynamic>> urunlers = [];
+  List<Map<String, dynamic>> urunlerkosullu = [];
+  List<Map<String, dynamic>> _urunler = [];
   //para formatı
   final formatCurrency = NumberFormat.currency(locale: 'tr_TR', symbol: '₺');
 
   void _getUrunler(int p_ustKid, int p_altKid) {
     if (p_ustKid == 0 || p_altKid == 0) {
-      urunlers = Urunler.getUrunler()
-          .where(
-            (a) => a.yayinda == 1,
-          )
-          .toList();
-      ;
+      urunlers = itemsUrunler.where((map) {
+        return map['yayinda'] == 1;
+      }).toList(); //.toList();
     } else {
-      urunlerkosullu = Urunler.getUrunler()
-          .where(
-            (i) =>
-                i.ustKid == p_ustKid && i.altKid == p_altKid && i.yayinda == 1,
-          )
-          .toList();
-
+      urunlers = itemsUrunler.where((map) {
+        return map['ustKategoriId'] == p_ustKid &&
+            map['altKategoriId'] == p_altKid &&
+            map['yayinda'] == 1;
+      }).toList();
       if (urunlerkosullu.length == 0) {
-        urunlers = Urunler.getUrunler()
-            .where(
-              (a) => a.yayinda == 1,
-            )
-            .toList();
+        urunlers = itemsUrunler.where((map) {
+          return map['yayinda'] == 1;
+        }).toList();
       } else {
         urunlers = urunlerkosullu;
       }
+    }
+
+    if (aramaVar == 0) {
+      // arama yoksa tüm listeyi getirir.
+      _urunler = urunlers;
     }
   }
 
   @override
   void initState() {
-    if (widget.altKID == null && widget.ustKID == null) {
-      _urunler = Urunler.getUrunler()
-          .where(
-            (a) => a.yayinda == 1,
-          )
-          .toList();
-      super.initState();
+    veriTabaniIslemi();
+    if (isLoaded == false) {
+      Yukleniyor();
     } else {
-      urunlerkosullu = Urunler.getUrunler()
-          .where(
-            (i) =>
-                i.ustKid == widget.ustKID &&
-                i.altKid == widget.altKID &&
-                i.yayinda == 1,
-          )
-          .toList();
-
-      if (urunlerkosullu.length == 0) {
-        _urunler = Urunler.getUrunler()
-            .where(
-              (a) => a.yayinda == 1,
-            )
-            .toList();
-        super.initState();
+      if (widget.altKID == null && widget.ustKID == null) {
+        _urunler = itemsUrunler.where((map) {
+          return map['yayinda'] == 1;
+        }).toList();
       } else {
-        _urunler = urunlerkosullu;
-        super.initState();
+        urunlerkosullu = itemsUrunler.where((map) {
+          return map['ustKategoriId'] == widget.ustKID &&
+              map['altKategoriId'] == widget.altKID &&
+              map['yayinda'] == 1;
+        }).toList();
+
+        if (urunlerkosullu.length == 0) {
+          _urunler = itemsUrunler.where((map) {
+            return map['yayinda'] == 1;
+          }).toList();
+        } else {
+          _urunler = urunlerkosullu;
+        }
       }
     }
   }
 
   void getList(String value) {
-    List<Urunler> results = [];
+    aramaVar = 1; //arama yapıldığı anda buraya düşer.
+    List<Map<String, dynamic>> results = [];
     if (value.isEmpty) {
       results = urunlers;
     } else {
       if (widget.ustKID == null && widget.altKID == null) {
-        results = Urunler.getUrunler()
-            .where(
-              (element) =>
-                  element.adi.toLowerCase().contains(value.toLowerCase()) &&
-                  element.yayinda == 1,
-            )
-            .toList();
+        results = itemsUrunler.where((map) {
+          return map['adi'].toLowerCase().contains(value.toLowerCase()) &&
+              map['yayinda'] == 1;
+        }).toList();
       } else {
-        results = Urunler.getUrunler()
-            .where(
-              (element) =>
-                  element.adi.toLowerCase().contains(value.toLowerCase()) &&
-                  element.ustKid == widget.ustKID &&
-                  element.altKid == widget.altKID &&
-                  element.yayinda == 1,
-            )
-            .toList();
+        results = itemsUrunler.where((map) {
+          return map['adi'].toLowerCase().contains(value.toLowerCase()) &&
+              map['ustKategoriId'] == widget.ustKID &&
+              map['altKategoriId'] == widget.altKID &&
+              map['yayinda'] == 1;
+        }).toList();
       }
     }
 
@@ -116,39 +111,39 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.ustKID == null || widget.altKID == null) {
-      print('deneme');
-      _getUrunler(0, 0);
+    if (isLoaded == false) {
+      return Yukleniyor();
     } else {
-      _getUrunler(widget.ustKID!, widget.altKID!);
+      if (widget.ustKID == null && widget.altKID == null) {
+        _getUrunler(0, 0);
+      } else {
+        _getUrunler(widget.ustKID!, widget.altKID!);
+      }
+      return Scaffold(
+        resizeToAvoidBottomInset:
+            false, // arama esnasında altta sarı şerit çıkmaması için
+        appBar: AppBar(
+          title: urunAra(),
+        ),
+        body: Container(
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                gryDecoration(), // arkaya griliği verir.
+                Column(
+                  children: [
+                    const SizedBox(
+                      height: 10,
+                    ),
+                    product(),
+                  ],
+                )
+              ],
+            ),
+          ),
+        ),
+      );
     }
-
-    return Scaffold(
-      resizeToAvoidBottomInset:
-          false, // arama esnasında altta sarı şerit çıkmaması için.s
-      appBar: AppBar(
-        title: urunAra(),
-      ),
-      body: Stack(
-        children: [
-          gryDecoration(), // arkaya griliği verir.
-          Column(
-            children: [
-              SizedBox(
-                height: 10,
-              ),
-              Container(
-                //height: 650,
-                height: MediaQuery.of(context).size.height -
-                    (MediaQuery.of(context).size.height) * 20.5 / 100,
-                child: product(),
-              ),
-            ],
-          ) //,
-          //product(),
-        ],
-      ),
-    );
   }
 
   TextField urunAra() {
@@ -170,7 +165,6 @@ class _HomePageState extends State<HomePage> {
 
   Container gryDecoration() {
     return Container(
-      //margin: EdgeInsets.only(top: 10, left: 20, right: 20),
       decoration: BoxDecoration(
         boxShadow: [
           BoxShadow(
@@ -184,6 +178,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Container product() {
+    //veriTabaniIslemi();
     return Container(
       child: GridView.builder(
         itemCount: _urunler.length, //urunlers.length,
@@ -202,10 +197,11 @@ class _HomePageState extends State<HomePage> {
                     context,
                     MaterialPageRoute(
                         builder: (context) => Detail(
-                              value: _urunler[index],
+                              value: _urunler[index]['id'],
                             )),
                   );
                 },
+                //child: Scrollbar(
                 child: Container(
                   width: MediaQuery.of(context).size.width * 0.46,
                   decoration: BoxDecoration(
@@ -219,7 +215,6 @@ class _HomePageState extends State<HomePage> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Container(
-                    //padding: EdgeInsetsDirectional.fromSTEB(0, 0, 0, 12),
                     child: Column(
                       mainAxisSize: MainAxisSize.max,
                       children: [
@@ -228,38 +223,46 @@ class _HomePageState extends State<HomePage> {
                           children: [
                             Expanded(
                               child: ClipRRect(
-                                child: Image.asset(
-                                  urunlers[index].resim == ''
-                                      ? 'assets/images/ortak/noproduct.jpg'
-                                      : _urunler[index]
-                                          .resim, //item.resim, // boş ise yükleniyor resmi görüntülenecek.
-                                  height: 130,
-                                  fit: BoxFit.cover,
+                                child: FutureBuilder(
+                                  future: FirebaseStorageService().getData(
+                                      //urunler/telefon_aksesuar/Iphone13.jpg
+                                      _urunler[index]['resim_url']),
+                                  builder: (context, snapshot) {
+                                    if (snapshot.connectionState ==
+                                        ConnectionState.done) {
+                                      return Image.network(
+                                        snapshot.data.toString(),
+                                        height: 145,
+                                        fit: BoxFit.cover,
+                                      );
+                                    }
+                                    return const Center(
+                                        child: CircularProgressIndicator());
+                                  },
                                 ),
                               ),
                             ),
                           ],
                         ),
                         Container(
-                          height: 20,
                           child: FittedBox(
                             fit: BoxFit.fitHeight, //BoxFit.cover,
                             child: Text(
-                              _urunler[index].adi,
+                              _urunler[index]["adi"],
                               style: TextStyle(
-                                fontSize: 20,
+                                fontSize: 15, // yazı boyutu
                               ),
                             ),
                           ),
                         ),
                         Container(
-                          height: 30,
                           child: FittedBox(
                             fit: BoxFit.fitHeight, //BoxFit.cover,
                             child: Text(
-                              //
-                              //Text('}',
-                              '${formatCurrency.format(_urunler[index].tutar)}',
+                              '${formatCurrency.format(_urunler[index]["fiyat"])}',
+                              style: TextStyle(
+                                fontSize: 17, // yazı boyutu
+                              ),
                             ),
                           ),
                         ),
@@ -267,11 +270,25 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                 ),
+                //),
               ),
             ],
           );
         },
       ),
     );
+  }
+
+  veriTabaniIslemi() async {
+    List<Map<String, dynamic>> tempListUrunler = [];
+    var dataUrunler = await collectionUrunler.get();
+    dataUrunler.docs.forEach((element) {
+      tempListUrunler.add(element.data());
+    });
+
+    setState(() {
+      itemsUrunler = tempListUrunler;
+      isLoaded = true;
+    });
   }
 }

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:todoapp/components/Fsepet.dart';
+import 'package:todoapp/components/Sepet/Fsepet.dart';
 import 'package:collection/collection.dart';
-import 'package:todoapp/model/urunler.dart';
+import 'package:todoapp/services/firebase_img_service.dart';
 
 class Sepet extends StatefulWidget {
   const Sepet({super.key});
@@ -11,10 +11,7 @@ class Sepet extends StatefulWidget {
   State<Sepet> createState() => _Sepet();
 }
 
-List<Urunler> ilgiliUrun = [];
-
-List<Map<String, dynamic>>? mevcutUrunler;
-//int p_List = 0;
+//List<Map<String, dynamic>> ilgiliUrun = [];
 int urunAdet = 1;
 int ilkAdet = 1;
 double toplamTutar = 0;
@@ -22,6 +19,13 @@ double toplamTutar = 0;
 final formatCurrency = NumberFormat.currency(locale: 'tr_TR', symbol: '₺');
 
 class _Sepet extends State<Sepet> {
+  @override
+  void initState() {
+    setState(() {
+      toplamTutar = sepetUrunToplamTutar();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -31,8 +35,7 @@ class _Sepet extends State<Sepet> {
   }
 
   Widget ifKontrol() {
-    //urunAdet = 1;
-    if (SepetiGoster().isNotEmpty) {
+    if (sepetiGoster().isNotEmpty) {
       return Scaffold(
         appBar: AppBar(
           centerTitle: true,
@@ -85,104 +88,117 @@ class _Sepet extends State<Sepet> {
     }
   }
 
-  void tumUrunlerLenght(int index) {
-    int veri;
-    if (mevcutUrunler == null) {
-      urunAdet = 1;
-      mevcutUrunler = [
-        {"Id": SepetiGoster()[index].id, "UrunAdedi": urunAdet}
-      ];
-    } else {
-      urunAdet = 1;
-      veri = mevcutUrunler!
-          .indexWhere((element) => element["Id"] == SepetiGoster()[index].id);
-      if (veri == -1) {
-        mevcutUrunAdd(index, urunAdet);
-      }
+  ListView listSepet() {
+    Map groupItemsByCategory(List items) {
+      return groupBy(items, (item) => item['id']);
     }
 
-    ilgiliUrun = SepetiGoster()
-        .where((element) =>
-            element.id.toString().contains(SepetiGoster()[index].id.toString()))
-        .toList();
-
-    ilgiliUrun
-        .where((element) => element.id == SepetiGoster()[index].id)
-        .length;
+    Map groupedItems = groupItemsByCategory(sepetiGoster());
+    return ListView.builder(
+      itemCount: groupedItems.length, //SepetiGoster().length,
+      itemBuilder: (context, index) {
+        /*
+        tumUrunlerLenght(
+          index,
+        );
+        */
+        return Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                FutureBuilder(
+                  future: FirebaseStorageService().getData(
+                      //urunler/telefon_aksesuar/Iphone13.jpg
+                      sepetiGoster()[index]['resim_url']),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.done) {
+                      return Image.network(
+                        snapshot.data.toString(),
+                        height: 150,
+                        //fit: BoxFit.cover,
+                      );
+                    }
+                    return const Center(child: CircularProgressIndicator());
+                  },
+                ),
+                const SizedBox(
+                  width: 5,
+                ),
+                Text(
+                  '  ' + sepetiGoster()[index]['adi'],
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                FloatingActionButton.extended(
+                  onPressed: () {},
+                  label: Row(
+                    children: [
+                      azaltveyaSilButon(index, sepetiGoster()[index]['id']),
+                      urunAdedi(sepetiGoster()[index]['id']),
+                      artirButon(index, sepetiGoster()[index]['id']),
+                    ],
+                  ),
+                ),
+                urunTutari(index, sepetiGoster()[index]['id']),
+              ],
+            ),
+            const SizedBox(
+              height: 5,
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _arttir(int ilgiliUrunId, int index) {
     setState(() {
       urunAdet = mevcutUrunAdediBul(ilgiliUrunId);
-      //mevcutUrunAdedi listesinden idye göre Mevcut Adedi Bulma.
 
-      //
-      //mevcutUrunAdedi listesinden IlgiliUrunId ye göre silme işlemi
-      mevcutUrunler!.removeWhere((element) => element["Id"] == ilgiliUrunId);
+      urunAdet += 1;
 
-      //sepetToplamTutar();
+      var guncellenecekUrun =
+          sepettekiUrunDetay.firstWhere((item) => item["Id"] == ilgiliUrunId);
+      if (guncellenecekUrun != null) {
+        guncellenecekUrun["UrunAdedi"] = urunAdet;
+        guncellenecekUrun["Fiyat"] = sepetiGoster()[index]['fiyat'] * urunAdet;
+      }
 
-      //adet değişkenini bir artırma
-      urunAdet++;
-
-      //toplamTutar = urunAdet * SepetiGoster()[index].tutar;
-      //oplamTutar += SepetiGoster()[index].tutar;
-
-      toplamTutar = toplamTutar + SepetiGoster()[index].tutar;
-
-      //ilgili urunu listeye tekrar ekleme.
-      mevcutUrunAdd(index, urunAdet);
-
-      /*
-      mevcutUrunAdedi!.addAll([
-        {"Id": SepetiGoster()[index].id, "UrunAdedi": urunAdet}
-      ]);
-      */
-    });
-  }
-
-  void mevcutUrunListesiBosaltma() {
-    toplamTutar = 0;
-    //urunAdet = 1;
-    setState(() {
-      mevcutUrunler!.clear();
-      SepetiBosalt();
+      toplamTutar += sepetiGoster()[index]['fiyat'].toDouble();
     });
   }
 
   void _azalt(int ilgiliUrunId, int index) {
     setState(() {
       urunAdet = mevcutUrunAdediBul(ilgiliUrunId);
-      //mevcutUrunAdedi listesinden idye göre Mevcut Adedi Bulma.
 
-      //
-      //mevcutUrunAdedi listesinden IlgiliUrunId ye göre silme işlemi
-      mevcutUrunler!.removeWhere((element) => element["Id"] == ilgiliUrunId);
+      urunAdet -= 1;
 
-      //adet değişkenini bir azaltma
-      urunAdet--;
+      var guncellenecekUrun =
+          sepettekiUrunDetay.firstWhere((item) => item["Id"] == ilgiliUrunId);
+      if (guncellenecekUrun != null) {
+        guncellenecekUrun["UrunAdedi"] = urunAdet;
+        guncellenecekUrun["Fiyat"] = sepetiGoster()[index]['fiyat'] * urunAdet;
+      }
 
-      //toplamTutar -= urunAdet * SepetiGoster()[index].tutar;
-      toplamTutar -= SepetiGoster()[index].tutar;
-
-      //ilgili urunu listeye tekrar ekleme.
-      mevcutUrunAdd(index, urunAdet);
-      /*
-      mevcutUrunAdedi!.addAll([
-        {"Id": SepetiGoster()[index].id, "UrunAdedi": urunAdet}
-      ]);
-      */
+      toplamTutar -= sepetiGoster()[index]['fiyat'].toDouble();
     });
   }
 
-  IconButton azaltveyaSil(int index, int ilgiliUrunId) {
+  IconButton azaltveyaSilButon(int index, int ilgiliUrunId) {
     //ürün adedi 1 iken sol tarafta sil simgesi çıkarmak için.
     if (mevcutUrunAdediBul(ilgiliUrunId) == 1) {
       return IconButton(
           onPressed: () {
             setState(() {
-              toplamTutar = toplamTutar - SepetiGoster()[index].tutar;
-              SepettenSil(SepetiGoster()[index].id);
+              toplamTutar = toplamTutar - sepetiGoster()[index]['fiyat'];
+              SepettenSil(sepetiGoster()[index]['id']);
             });
           },
           icon: const Icon(Icons.delete));
@@ -207,7 +223,8 @@ class _Sepet extends State<Sepet> {
     int veri = mevcutUrunlerUrunVarmi(urunId);
     if (veri != -1) {
       return Text(
-        mevcutUrunler![veri].values.last.toString(),
+        //myList[1].keys.elementAt(0);
+        sepettekiUrunDetay[veri].values.elementAt(1).toString(),
         style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
       );
     } else {
@@ -216,104 +233,45 @@ class _Sepet extends State<Sepet> {
   }
 
   //mevcutUrunler listesi ile ilgili işlemler başlangıç
+  //kolay yoldan sepettekiUrunDetay 'a idye göre adet bulma.
   int mevcutUrunAdediBul(int ilgiliUrunId) {
-    int kacinciIndex =
-        mevcutUrunler!.indexWhere((element) => element["Id"] == ilgiliUrunId);
-    urunAdet = mevcutUrunler![kacinciIndex].values.last;
+    int kacinciIndex = sepettekiUrunDetay
+        .indexWhere((element) => element["Id"] == ilgiliUrunId);
+    urunAdet = sepettekiUrunDetay[kacinciIndex].values.elementAt(1);
     return urunAdet;
   }
 
-  void mevcutUrunAdd(int index, int urunAdet) {
-    mevcutUrunler!.addAll([
-      {"Id": SepetiGoster()[index].id, "UrunAdedi": urunAdet}
+  void mevcutUrunAdd(int index, int urunAdet, double fiyat) {
+    sepettekiUrunDetay.addAll([
+      {"Id": sepetiGoster()[index]['id'], "UrunAdedi": urunAdet, "Fiyat": fiyat}
     ]);
   }
 
   int mevcutUrunlerUrunVarmi(int urunId) {
-    int sayi = mevcutUrunler!.indexWhere((element) => element["Id"] == urunId);
+    int sayi =
+        sepettekiUrunDetay.indexWhere((element) => element["Id"] == urunId);
     return sayi;
   }
 
-  @override
-  void initState() {
+  void mevcutUrunListesiBosaltma() {
+    toplamTutar = 0;
     setState(() {
-      //urunAdet = 1;
-      toplamTutar = sepetToplamTutar();
+      sepettekiUrunDetay.clear();
+      SepetiBosalt();
     });
   }
 
   //mevcutUrunler listesi ile ilgili işlemler son
   Text urunTutari(int index, int ilgiliUrunId) {
-    //toplamTutar = urunAdet * SepetiGoster()[index].tutar;
-    //toplamTutar = sepetToplamTutar(); //+ toplamTutar;
-    toplamTutar = sepetToplamTutar() * mevcutUrunAdediBul(ilgiliUrunId);
-    //toplamTutar = toplamTutar * mevcutUrunAdediBul(ilgiliUrunId);
+    toplamTutar = sepetUrunToplamTutar();
+
     return Text(
-      '${formatCurrency.format(SepetiGoster()[index].tutar * mevcutUrunAdediBul(ilgiliUrunId))}',
+      '${formatCurrency.format(sepettekiUrunDetay[index]['Fiyat'].toDouble())}',
       style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
     );
   }
 
-  ListView listSepet() {
-    Map groupItemsByCategory(List items) {
-      return groupBy(items, (item) => item.id);
-    }
-
-    Map groupedItems = groupItemsByCategory(SepetiGoster());
-    return ListView.builder(
-      itemCount: groupedItems.length, //SepetiGoster().length,
-      itemBuilder: (context, index) {
-        tumUrunlerLenght(
-          index,
-          //SepetiGoster()[index].id,
-        );
-        return Column(
-          children: [
-            Row(
-              children: [
-                Image.asset(
-                  SepetiGoster()[index].resim == ''
-                      ? 'assets/images/ortak/noproduct.jpg'
-                      : SepetiGoster()[index]
-                          .resim, //item.resim, // boş ise yükleniyor resmi görüntülenecek.
-                  height: 100,
-                  fit: BoxFit.cover,
-                ),
-                const SizedBox(
-                  width: 5,
-                ),
-                Text(
-                  '  ' + SepetiGoster()[index].adi,
-                  style: const TextStyle(
-                      fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                FloatingActionButton.extended(
-                  onPressed: () {},
-                  label: Row(
-                    children: [
-                      azaltveyaSil(index, SepetiGoster()[index].id),
-                      urunAdedi(SepetiGoster()[index].id),
-                      artirButon(index, SepetiGoster()[index].id),
-                    ],
-                  ),
-                ),
-                urunTutari(index, SepetiGoster()[index].id),
-              ],
-            ),
-            const SizedBox(
-              height: 5,
-            ),
-          ],
-        );
-      },
-    );
-  }
-
+  //Alışverişi Tamamla Butonu
   BottomAppBar bottomSepet() {
     return BottomAppBar(
       child: Row(
