@@ -11,10 +11,8 @@ class Sepet extends StatefulWidget {
   State<Sepet> createState() => _Sepet();
 }
 
-//List<Map<String, dynamic>> ilgiliUrun = [];
 int urunAdet = 1;
 double toplamTutar = 0;
-//= 0;
 final formatCurrency = NumberFormat.currency(locale: 'tr_TR', symbol: '₺');
 
 class _Sepet extends State<Sepet> {
