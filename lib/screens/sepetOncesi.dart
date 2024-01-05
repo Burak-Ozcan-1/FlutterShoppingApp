@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:todoapp/components/alt_NavigationBar.dart';
-import 'package:todoapp/main.dart';
-import 'package:todoapp/screens/sepet.dart';
 
 class SepetOncesi extends StatelessWidget {
   const SepetOncesi({super.key});
@@ -39,7 +37,7 @@ class SepetOncesi extends StatelessWidget {
                   MaterialPageRoute(builder: (context) => MyApp()),
                 );
                 */
-                 /*
+                /*
                 Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
